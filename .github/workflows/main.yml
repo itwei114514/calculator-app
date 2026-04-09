@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04  # 使用Ubuntu 20.04以获得更好的兼容性
     
     steps:
     - uses: actions/checkout@v4
@@ -19,7 +19,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential git zip unzip openjdk-8-jdk python3-dev
+        sudo apt-get install -y build-essential git zip unzip openjdk-8-jdk python3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev libsqlite3-dev wget libbz2-dev
         export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
         java -version
     
@@ -28,7 +28,14 @@ jobs:
         pip install --upgrade pip
         pip install Cython==0.29.33
         pip install kivy==2.2.1
-        pip install buildozer
+        pip install python-for-android==2023.7.27
+        pip install buildozer==1.5.0
+    
+    - name: Verify installations
+      run: |
+        python -c "import kivy; print('Kivy version:', kivy.__version__)"
+        buildozer --version || echo "Buildozer version check failed"
+        p4a --version || echo "P4A version check failed"
     
     - name: Check files
       run: |
@@ -36,17 +43,40 @@ jobs:
         cat requirements.txt
         cat buildozer.spec
     
-    - name: Prepare project for build
+    - name: Prepare project files
       run: |
         # Make sure we have the correct files
         cp calculator_app.py main.py
         echo "Files after preparation:"
-        ls -la *.py *.txt *.spec
+        ls -la main.py requirements.txt buildozer.spec
     
     - name: Update buildozer.spec
       run: |
-        sed -i 's/requirements = python3, kivy/requirements = python3,kivy/' buildozer.spec
-        sed -i 's/android.archs = arm64-v8a, armeabi-v7a/android.archs = arm64-v8a/' buildozer.spec
+        # Remove problematic lines and recreate spec file
+        cat > buildozer.spec << EOF
+[app]
+title = Scientific Calculator
+package.name = calculator
+package.domain = org.example
+
+source.dir = .
+source.include_exts = py
+
+version = 1.0
+requirements = python3,kivy
+android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE
+
+android.archs = arm64-v8a
+android.api = 33
+android.minapi = 21
+android.sdk = 33
+android.ndk = 25b
+
+orientation = portrait
+
+[buildozer]
+log_level = 2
+EOF
         cat buildozer.spec
     
     - name: Clean previous builds
@@ -54,11 +84,15 @@ jobs:
         rm -rf bin/
         rm -rf .buildozer/
     
-    - name: Build APK with detailed output
+    - name: Initialize buildozer
+      run: |
+        buildozer init || echo "Init may fail, continuing..."
+    
+    - name: Build APK with minimal dependencies first
       run: |
         echo "Starting build process..."
         buildozer android clean
-        buildozer android debug --verbose
+        buildozer android debug
       continue-on-error: true
     
     - name: Check build results
@@ -66,7 +100,7 @@ jobs:
         echo "Checking build results..."
         find . -name "*.apk" -type f
         ls -la bin/ || echo "Bin directory doesn't exist"
-        ls -la .buildozer/android/platform/build-arm64-v8a/dists/ || echo "Build dists not found"
+        ls -la .buildozer/ || echo "Buildozer directory doesn't exist"
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
@@ -75,4 +109,5 @@ jobs:
         path: |
           bin/*.apk
           .buildozer/android/platform/build-arm64-v8a/dists/**/bin/*.apk
+          ./*.apk
       continue-on-error: true
