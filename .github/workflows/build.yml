@@ -50,7 +50,6 @@ jobs:
         android.archs = arm64-v8a
         android.api = 34
         android.minapi = 21
-        # 🔑 核心修复 1：锁定稳定版 build-tools，避开 37.0.0 的 CI 许可 Bug
         android.build_tools_version = 34.0.0
         orientation = portrait
 
@@ -60,15 +59,36 @@ jobs:
         p4a.branch = master
         EOF
     
+    - name: 🔑 Manually Initialize Android SDK & NDK
+      run: |
+        SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
+        mkdir -p "$SDK_DIR/cmdline-tools"
+        
+        # 1. 下载官方 cmdline-tools (解决 sdkmanager 缺失问题)
+        wget -q "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" -O /tmp/cmdline.zip
+        unzip -q /tmp/cmdline.zip -d /tmp/cmdline
+        mv /tmp/cmdline/cmdline-tools "$SDK_DIR/cmdline-tools/latest"
+        
+        # 2. 导出环境变量，让后续命令能找到 sdkmanager
+        export ANDROID_SDK_ROOT="$SDK_DIR"
+        export PATH="$SDK_DIR/cmdline-tools/latest/bin:$PATH"
+        
+        # 3. 自动接受所有许可并安装核心组件
+        yes | sdkmanager --licenses > /dev/null
+        sdkmanager "platforms;android-34" \
+                   "build-tools;34.0.0" \
+                   "platform-tools" \
+                   "ndk;25.2.9519653"
+        
+        rm -f /tmp/cmdline.zip
+        rm -rf /tmp/cmdline
+    
     - name: Build APK
       run: |
-        # 🔑 核心修复 2：提前注入 Google 官方许可哈希，彻底绕过交互式确认
-        LICENSES_DIR="$HOME/.buildozer/android/platform/android-sdk/licenses"
-        mkdir -p "$LICENSES_DIR"
-        echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > "$LICENSES_DIR/android-sdk-license"
-        echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> "$LICENSES_DIR/android-sdk-license"
+        # 确保 buildozer 能复用我们手动配置好的 SDK/NDK
+        export ANDROID_SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
+        export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/25.2.9519653"
         
-        # 🔑 核心修复 3：移除无效参数，使用标准命令
         python -m buildozer -v android debug
     
     - name: Upload APK
