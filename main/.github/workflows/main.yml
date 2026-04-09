@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04  # 固定 22.04，避免 24.04 交叉编译兼容性问题
+    runs-on: ubuntu-22.04
     
     steps:
     - uses: actions/checkout@v4
@@ -14,30 +14,28 @@ jobs:
     - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'  # p4a/buildozer 兼容性最佳的版本
+        python-version: '3.10'
     
     - name: Install System Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
-          build-essential git zip unzip openjdk-17-jdk \
-          pkg-config autoconf automake python3-dev \
-          zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev \
-          libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
-          wget libbz2-dev libltdl-dev
+        sudo apt-get install -y build-essential git zip unzip openjdk-17-jdk \
+          pkg-config autoconf automake python3-dev zlib1g-dev libncurses5-dev \
+          libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev \
+          libsqlite3-dev wget libbz2-dev libltdl-dev
     
     - name: Install Python Dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        # 🔑 核心修复：绝对不要手动指定 python-for-android 版本！
-        # buildozer 会自动拉取完全匹配的 p4a 版本，手动指定必冲突
-        pip install cython kivy buildozer
+        # 清理可能缓存的错误元数据
+        pip install --no-cache-dir cython kivy
+        # 🔑 核心修复：PyPI 的 buildozer 1.5.0 依赖已损坏，此处直接从 GitHub 拉取官方修复版
+        pip install --no-cache-dir git+https://github.com/kivy/buildozer.git@master
     
-    - name: Prepare Project & Spec
+    - name: Prepare Project
       run: |
         cp calculator_app.py main.py
         rm -rf .buildozer bin
-        
         cat > buildozer.spec << 'EOF'
         [app]
         title = Scientific Calculator
@@ -46,7 +44,6 @@ jobs:
         source.dir = .
         source.include_exts = py
         version = 1.0
-        # ⚠️ 这里只能写 APP 运行需要的 Python 库，绝不能写构建工具
         requirements = python3,kivy
         android.permissions = INTERNET
         android.archs = arm64-v8a
@@ -60,7 +57,7 @@ jobs:
     
     - name: Build APK
       run: |
-        # 🔑 核心修复：使用 python -m 调用，彻底避开 PATH 环境变量导致的 command not found
+        # 🔑 使用 python -m 调用，彻底避开 PATH 环境变量问题
         python -m buildozer android clean
         python -m buildozer android debug
     
