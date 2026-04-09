@@ -1,11 +1,11 @@
-name: Build APK
+name: Build Kivy APK
 
 on:
   push:
     branches: [ main ]
 
 jobs:
-  build:
+  build-apk:
     runs-on: ubuntu-22.04
     
     steps:
@@ -19,30 +19,31 @@ jobs:
     - name: Install System Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential git zip unzip openjdk-17-jdk \
-          pkg-config autoconf automake python3-dev zlib1g-dev libncurses5-dev \
-          libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev \
-          libsqlite3-dev wget libbz2-dev libltdl-dev
+        sudo apt-get install -y \
+          build-essential git zip unzip openjdk-17-jdk \
+          pkg-config autoconf automake python3-dev \
+          zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev \
+          libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
+          wget libbz2-dev libltdl-dev
     
     - name: Install Python Dependencies
       run: |
         python -m pip install --upgrade pip setuptools wheel
-        # 清理可能缓存的错误元数据
-        pip install --no-cache-dir cython kivy
-        # 🔑 核心修复：PyPI 的 buildozer 1.5.0 依赖已损坏，此处直接从 GitHub 拉取官方修复版
-        pip install --no-cache-dir git+https://github.com/kivy/buildozer.git@master
+        pip install --no-cache-dir "Cython>=3.0" "kivy>=2.2"
+        pip install --no-cache-dir git+https://github.com/kivy/buildozer.git
     
     - name: Prepare Project
       run: |
         cp calculator_app.py main.py
-        rm -rf .buildozer bin
+        rm -rf .buildozer ~/.buildozer bin/
+        
         cat > buildozer.spec << 'EOF'
         [app]
         title = Scientific Calculator
         package.name = calculator
-        package.domain = org.example
+        package.domain = org.kivy.calculator
         source.dir = .
-        source.include_exts = py
+        source.include_exts = py,png,jpg,kv,atlas
         version = 1.0
         requirements = python3,kivy
         android.permissions = INTERNET
@@ -53,13 +54,14 @@ jobs:
 
         [buildozer]
         log_level = 2
+        warn_on_root = 1
+        p4a.branch = master
         EOF
     
     - name: Build APK
       run: |
-        # 🔑 使用 python -m 调用，彻底避开 PATH 环境变量问题
-        python -m buildozer android clean
-        python -m buildozer android debug
+        # 🔑 核心修复：添加 --accept-android-sdk-licenses 自动接受协议
+        python -m buildozer -v android debug --accept-android-sdk-licenses
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
