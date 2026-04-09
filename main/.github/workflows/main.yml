@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04  # 22.04 对交叉编译环境更稳定
+    runs-on: ubuntu-22.04  # 固定 22.04，避免 24.04 交叉编译兼容性问题
     
     steps:
     - uses: actions/checkout@v4
@@ -14,35 +14,30 @@ jobs:
     - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'  # p4a/buildozer 对 3.10 兼容性最佳
+        python-version: '3.10'  # p4a/buildozer 兼容性最佳的版本
     
-    - name: Install system dependencies
+    - name: Install System Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential git zip unzip openjdk-17-jdk pkg-config autoconf automake python3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev libsqlite3-dev wget libbz2-dev
-        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-        java -version
+        sudo apt-get install -y \
+          build-essential git zip unzip openjdk-17-jdk \
+          pkg-config autoconf automake python3-dev \
+          zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev \
+          libssl-dev libreadline-dev libffi-dev libsqlite3-dev \
+          wget libbz2-dev libltdl-dev
     
-    - name: Install Python dependencies
+    - name: Install Python Dependencies
       run: |
-        pip install --upgrade pip setuptools wheel
-        pip install Cython
-        pip install kivy
-        pip install buildozer
-        # python-for-android 会作为 buildozer 的依赖自动安装，无需手动指定版本
+        python -m pip install --upgrade pip setuptools wheel
+        # 🔑 核心修复：绝对不要手动指定 python-for-android 版本！
+        # buildozer 会自动拉取完全匹配的 p4a 版本，手动指定必冲突
+        pip install cython kivy buildozer
     
-    - name: Verify installations
-      run: |
-        python -c "import kivy; print('Kivy version:', kivy.__version__)"
-        buildozer --version
-    
-    - name: Prepare project files
+    - name: Prepare Project & Spec
       run: |
         cp calculator_app.py main.py
-        ls -la
-    
-    - name: Create buildozer.spec
-      run: |
+        rm -rf .buildozer bin
+        
         cat > buildozer.spec << 'EOF'
         [app]
         title = Scientific Calculator
@@ -51,7 +46,7 @@ jobs:
         source.dir = .
         source.include_exts = py
         version = 1.0
-        # ⚠️ 绝对不要在这里写 python-for-android，它是构建工具，不是运行时依赖
+        # ⚠️ 这里只能写 APP 运行需要的 Python 库，绝不能写构建工具
         requirements = python3,kivy
         android.permissions = INTERNET
         android.archs = arm64-v8a
@@ -62,24 +57,12 @@ jobs:
         [buildozer]
         log_level = 2
         EOF
-        cat buildozer.spec
-    
-    - name: Clean build directory
-      run: |
-        rm -rf .buildozer/
-        rm -rf bin/
     
     - name: Build APK
       run: |
-        echo "Starting build process..."
-        buildozer android clean
-        buildozer android debug
-    
-    - name: Check build results
-      run: |
-        echo "Looking for APK files..."
-        find . -name "*.apk" -type f -exec ls -la {} \;
-        ls -la bin/ 2>/dev/null || echo "No bin directory"
+        # 🔑 核心修复：使用 python -m 调用，彻底避开 PATH 环境变量导致的 command not found
+        python -m buildozer android clean
+        python -m buildozer android debug
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
