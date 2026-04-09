@@ -20,7 +20,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y build-essential git zip unzip openjdk-8-jdk python3-dev
-        echo "JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64" >> $GITHUB_ENV
         export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
         java -version
     
@@ -31,59 +30,27 @@ jobs:
         pip install kivy==2.2.1
         pip install buildozer
     
-    - name: Prepare project files
+    - name: Check files
       run: |
         ls -la
-        # Copy calculator file to main.py
-        cp calculator_app.py main.py
-        echo "kivy==2.2.1" > requirements.txt
         cat requirements.txt
-        ls -la *.py
-    
-    - name: Create buildozer.spec
-      run: |
-        cat > buildozer.spec << EOF
-[app]
-title = Scientific Calculator
-package.name = calculator
-package.domain = org.example
-
-source.dir = .
-source.include_exts = py
-
-version = 1.0
-requirements = python3,kivy
-android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE
-
-android.archs = arm64-v8a
-android.api = 33
-android.minapi = 21
-android.sdk = 33
-android.ndk = 25b
-
-orientation = portrait
-
-[buildozer]
-log_level = 2
-EOF
         cat buildozer.spec
     
-    - name: Test Kivy
+    - name: Update buildozer.spec with correct requirements
       run: |
-        python -c "import kivy; print('Kivy version:', kivy.__version__)"
-        python main.py --version || echo "Version test skipped"
+        sed -i 's/requirements = python3, kivy/requirements = python3,kivy/' buildozer.spec
+        sed -i 's/android.archs = arm64-v8a, armeabi-v7a/android.archs = arm64-v8a/' buildozer.spec
+        cat buildozer.spec
     
-    - name: Build APK with verbose
+    - name: Build APK
       run: |
-        echo "Starting build process..."
-        ls -la
         buildozer android debug
       continue-on-error: true
     
-    - name: Check for APK
+    - name: Show bin directory
       run: |
         find . -name "*.apk" -type f
-        ls -la bin/ || echo "Bin directory does not exist yet"
+        ls -la bin/ || echo "Bin directory doesn't exist yet"
     
     - name: Upload APK
       uses: actions/upload-artifact@v3
