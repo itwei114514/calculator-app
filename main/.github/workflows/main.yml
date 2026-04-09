@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # 使用最新的Ubuntu
     
     steps:
     - uses: actions/checkout@v4
@@ -19,7 +19,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential git zip unzip openjdk-8-jdk python3-dev
+        sudo apt-get install -y build-essential git zip unzip openjdk-8-jdk python3-dev zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev libsqlite3-dev wget libbz2-dev
         export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
         java -version
     
@@ -28,33 +28,73 @@ jobs:
         pip install --upgrade pip
         pip install Cython==0.29.33
         pip install kivy==2.2.1
-        pip install buildozer
+        pip install python-for-android==2023.7.27
+        pip install buildozer==1.5.0
     
-    - name: Check files
+    - name: Verify installations
       run: |
+        python -c "import kivy; print('Kivy version:', kivy.__version__)"
+    
+    - name: Prepare project files
+      run: |
+        cp calculator_app.py main.py
         ls -la
-        cat requirements.txt
+    
+    - name: Create buildozer.spec
+      run: |
+        echo "[app]" > buildozer.spec
+        echo "title = Scientific Calculator" >> buildozer.spec
+        echo "package.name = calculator" >> buildozer.spec
+        echo "package.domain = org.example" >> buildozer.spec
+        echo "source.dir = ." >> buildozer.spec
+        echo "source.include_exts = py" >> buildozer.spec
+        echo "version = 1.0" >> buildozer.spec
+        echo "requirements = python3,kivy" >> buildozer.spec
+        echo "android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE" >> buildozer.spec
+        echo "android.archs = arm64-v8a" >> buildozer.spec
+        echo "android.api = 33" >> buildozer.spec
+        echo "android.minapi = 21" >> buildozer.spec
+        echo "android.sdk = 33" >> buildozer.spec
+        echo "android.ndk = 25b" >> buildozer.spec
+        echo "orientation = portrait" >> buildozer.spec
+        echo "" >> buildozer.spec
+        echo "[buildozer]" >> buildozer.spec
+        echo "log_level = 2" >> buildozer.spec
         cat buildozer.spec
     
-    - name: Update buildozer.spec with correct requirements
+    - name: Clean build directory
       run: |
-        sed -i 's/requirements = python3, kivy/requirements = python3,kivy/' buildozer.spec
-        sed -i 's/android.archs = arm64-v8a, armeabi-v7a/android.archs = arm64-v8a/' buildozer.spec
-        cat buildozer.spec
+        rm -rf .buildozer/
+        rm -rf bin/
     
-    - name: Build APK
+    - name: Build APK (first attempt)
       run: |
+        echo "Starting build process..."
+        buildozer android clean
         buildozer android debug
       continue-on-error: true
     
-    - name: Show bin directory
+    - name: Alternative build method
+      if: always()
       run: |
-        find . -name "*.apk" -type f
-        ls -la bin/ || echo "Bin directory doesn't exist yet"
+        # If the normal build fails, try with minimal config
+        if [ ! -f "bin/*.apk" ]; then
+          echo "Trying alternative build method..."
+          buildozer android_new debug
+        fi
+      continue-on-error: true
+    
+    - name: Find APK files
+      run: |
+        echo "Looking for APK files..."
+        find . -name "*.apk" -type f -exec ls -la {} \;
+        ls -la bin/ 2>/dev/null || echo "No bin directory"
     
     - name: Upload APK
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: calculator-apk
-        path: bin/*.apk
+        path: |
+          bin/*.apk
+          **/*.apk
       continue-on-error: true
