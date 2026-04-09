@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04  # 使用Ubuntu 20.04以获得更好的兼容性
+    runs-on: ubuntu-20.04
     
     steps:
     - uses: actions/checkout@v4
@@ -45,48 +45,36 @@ jobs:
     
     - name: Prepare project files
       run: |
-        # Make sure we have the correct files
         cp calculator_app.py main.py
         echo "Files after preparation:"
         ls -la main.py requirements.txt buildozer.spec
     
     - name: Update buildozer.spec
       run: |
-        # Remove problematic lines and recreate spec file
-        cat > buildozer.spec << EOF
-[app]
-title = Scientific Calculator
-package.name = calculator
-package.domain = org.example
-
-source.dir = .
-source.include_exts = py
-
-version = 1.0
-requirements = python3,kivy
-android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE
-
-android.archs = arm64-v8a
-android.api = 33
-android.minapi = 21
-android.sdk = 33
-android.ndk = 25b
-
-orientation = portrait
-
-[buildozer]
-log_level = 2
-EOF
+        echo "[app]" > buildozer.spec
+        echo "title = Scientific Calculator" >> buildozer.spec
+        echo "package.name = calculator" >> buildozer.spec
+        echo "package.domain = org.example" >> buildozer.spec
+        echo "source.dir = ." >> buildozer.spec
+        echo "source.include_exts = py" >> buildozer.spec
+        echo "version = 1.0" >> buildozer.spec
+        echo "requirements = python3,kivy" >> buildozer.spec
+        echo "android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE" >> buildozer.spec
+        echo "android.archs = arm64-v8a" >> buildozer.spec
+        echo "android.api = 33" >> buildozer.spec
+        echo "android.minapi = 21" >> buildozer.spec
+        echo "android.sdk = 33" >> buildozer.spec
+        echo "android.ndk = 25b" >> buildozer.spec
+        echo "orientation = portrait" >> buildozer.spec
+        echo "" >> buildozer.spec
+        echo "[buildozer]" >> buildozer.spec
+        echo "log_level = 2" >> buildozer.spec
         cat buildozer.spec
     
     - name: Clean previous builds
       run: |
         rm -rf bin/
         rm -rf .buildozer/
-    
-    - name: Initialize buildozer
-      run: |
-        buildozer init || echo "Init may fail, continuing..."
     
     - name: Build APK with minimal dependencies first
       run: |
@@ -100,7 +88,6 @@ EOF
         echo "Checking build results..."
         find . -name "*.apk" -type f
         ls -la bin/ || echo "Bin directory doesn't exist"
-        ls -la .buildozer/ || echo "Buildozer directory doesn't exist"
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
