@@ -28,7 +28,7 @@ jobs:
         pip install --upgrade pip
         pip install Cython==0.29.33
         pip install kivy==2.2.1
-        pip install python-for-android  # 不指定版本，让pip选择最佳版本
+        pip install python-for-android==2022.7  # 使用可用的版本
         pip install buildozer==1.5.0
     
     - name: Verify installations
@@ -39,6 +39,9 @@ jobs:
     - name: Prepare project files
       run: |
         cp calculator_app.py main.py
+        echo "kivy==2.2.1" > requirements.txt
+        echo "python-for-android==2022.7" >> requirements.txt
+        cat requirements.txt
         ls -la
     
     - name: Create buildozer.spec
@@ -50,7 +53,7 @@ jobs:
         echo "source.dir = ." >> buildozer.spec
         echo "source.include_exts = py" >> buildozer.spec
         echo "version = 1.0" >> buildozer.spec
-        echo "requirements = python3,kivy" >> buildozer.spec
+        echo "requirements = python3,kivy,python-for-android==2022.7" >> buildozer.spec
         echo "android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE" >> buildozer.spec
         echo "android.archs = arm64-v8a" >> buildozer.spec
         echo "android.api = 33" >> buildozer.spec
