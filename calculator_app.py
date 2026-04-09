@@ -7,16 +7,15 @@ import math
 from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 
-
 class CalculatorApp(App):
     def build(self):
         self.current = "0"
         self.previous = ""
         self.operator = ""
         self.should_reset = False
-
+        
         main_layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
-
+        
         # 显示屏
         self.display = TextInput(
             text='0',
@@ -30,10 +29,10 @@ class CalculatorApp(App):
             foreground_color=[0, 0, 0, 1]
         )
         main_layout.add_widget(self.display)
-
+        
         # 按钮布局
         buttons_layout = GridLayout(cols=4, spacing=5, size_hint_y=1)
-
+        
         buttons = [
             ("C", "clear"), ("±", "sign"), ("√", "sqrt"), ("/", "divide"),
             ("7", "7"), ("8", "8"), ("9", "9"), ("*", "multiply"),
@@ -42,7 +41,7 @@ class CalculatorApp(App):
             ("0", "0"), (".", "decimal"), ("DEL", "delete"), ("=", "equals"),
             ("sin", "sin"), ("cos", "cos"), ("ln", "ln"), ("!", "factorial")
         ]
-
+        
         for button_text, button_type in buttons:
             btn = Button(
                 text=button_text,
@@ -52,10 +51,10 @@ class CalculatorApp(App):
             )
             btn.bind(on_press=lambda x, bt=button_type: self.handle_button(bt))
             buttons_layout.add_widget(btn)
-
+        
         main_layout.add_widget(buttons_layout)
         return main_layout
-
+    
     def get_button_color(self, button_type):
         if button_type in ['add', 'subtract', 'multiply', 'divide', 'equals', 'sqrt', 'sin', 'cos', 'ln', 'factorial']:
             return [1, 0.58, 0, 1]  # 橙色
@@ -63,7 +62,7 @@ class CalculatorApp(App):
             return [0.65, 0.65, 0.65, 1]  # 灰色
         else:
             return [0.2, 0.2, 0.2, 1]  # 深灰色
-
+    
     def handle_button(self, button_type):
         try:
             if button_type.isdigit() or button_type == 'decimal':
@@ -90,35 +89,35 @@ class CalculatorApp(App):
                 self.factorial()
         except Exception as e:
             self.show_error(f"计算错误: {str(e)}")
-
+    
     def input_number(self, num):
         if self.should_reset:
             self.current = "0"
             self.should_reset = False
-
+        
         if self.current == "0" and num != 'decimal':
             self.current = "0" if num == "0" else num
         elif num == 'decimal' and "." not in self.current:
             self.current += "."
         elif num != 'decimal':
             self.current += num
-
+        
         self.display.text = self.current
-
+    
     def input_operator(self, op):
         if self.operator and not self.should_reset:
             self.calculate()
-
+        
         self.previous = self.current
         self.operator = op
         self.should_reset = True
-
+    
     def calculate(self):
         if self.operator and self.previous:
             try:
                 prev_val = float(self.previous)
                 curr_val = float(self.current)
-
+                
                 if self.operator == 'add':
                     result = prev_val + curr_val
                 elif self.operator == 'subtract':
@@ -130,34 +129,34 @@ class CalculatorApp(App):
                         self.show_error('除数不能为零')
                         return
                     result = prev_val / curr_val
-
+                
                 # 格式化结果
                 if result == int(result):
                     self.current = str(int(result))
                 else:
                     self.current = f"{result:.10g}"
-
+                
                 self.display.text = self.current
                 self.operator = ""
                 self.previous = ""
                 self.should_reset = True
             except Exception as e:
                 self.show_error(f'计算错误: {str(e)}')
-
+    
     def clear(self):
         self.current = "0"
         self.previous = ""
         self.operator = ""
         self.should_reset = False
         self.display.text = "0"
-
+    
     def delete_last(self):
         if len(self.current) > 1:
             self.current = self.current[:-1]
         else:
             self.current = "0"
         self.display.text = self.current
-
+    
     def toggle_sign(self):
         if self.current != "0":
             if self.current.startswith("-"):
@@ -165,7 +164,7 @@ class CalculatorApp(App):
             else:
                 self.current = "-" + self.current
             self.display.text = self.current
-
+    
     def square_root(self):
         try:
             val = float(self.current)
@@ -181,23 +180,23 @@ class CalculatorApp(App):
             self.should_reset = True
         except Exception as e:
             self.show_error(f'计算错误: {str(e)}')
-
+    
     def trig_function(self, func_name):
         try:
             angle_deg = float(self.current)
             angle_rad = math.radians(angle_deg)
-
+            
             if func_name == 'sin':
                 result = math.sin(angle_rad)
             elif func_name == 'cos':
                 result = math.cos(angle_rad)
-
+            
             self.current = f"{result:.10g}"
             self.display.text = self.current
             self.should_reset = True
         except Exception as e:
             self.show_error(f'计算错误: {str(e)}')
-
+    
     def natural_log(self):
         try:
             val = float(self.current)
@@ -210,7 +209,7 @@ class CalculatorApp(App):
             self.should_reset = True
         except Exception as e:
             self.show_error(f'计算错误: {str(e)}')
-
+    
     def factorial(self):
         try:
             val = float(self.current)
@@ -223,11 +222,10 @@ class CalculatorApp(App):
             self.should_reset = True
         except Exception as e:
             self.show_error(f'计算错误: {str(e)}')
-
+    
     def show_error(self, message):
         popup = Popup(title='错误', content=Label(text=message), size_hint=(0.6, 0.4))
         popup.open()
-
 
 if __name__ == '__main__':
     CalculatorApp().run()
