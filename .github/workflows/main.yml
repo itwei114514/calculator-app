@@ -1,0 +1,65 @@
+name: Build APK
+
+on:
+  push:
+分支: [ main ]
+  pull_request:
+分支: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        pip install buildozer cython
+        sudo apt-get update
+        sudo apt-get install -y openjdk-8-jdk-headless
+    
+    - name: Create project structure
+      run: |
+        cp calculator_app.py main.py
+        echo "kivy==2.2.1" > requirements.txt
+    
+    - name: Initialize buildozer
+      run: |
+        # Create buildozer.spec
+        echo "[app]" > buildozer.spec
+        echo "title = 科学计算器" >> buildozer.spec
+        echo "package.name = calculator" >> buildozer.spec
+        echo "package.domain = org.example" >> buildozer.spec
+        echo "source.dir = ." >> buildozer.spec
+        echo "source.include_exts = py" >> buildozer.spec
+        echo "version = 1.0" >> buildozer.spec
+        echo "requirements = python3,kivy" >> buildozer.spec
+        echo "android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE" >> buildozer.spec
+        echo "android.api = 33" >> buildozer.spec
+        echo "android.minapi = 21" >> buildozer.spec
+        echo "android.sdk = 33" >> buildozer.spec
+        echo "android.ndk = 25b" >> buildozer.spec
+        echo "orientation = portrait" >> buildozer.spec
+        echo "android.archs = arm64-v8a, armeabi-v7a" >> buildozer.spec
+        echo "" >> buildozer.spec
+        echo "[buildozer]" >> buildozer.spec
+        echo "log_level = 2" >> buildozer.spec
+        
+        cat buildozer.spec
+    
+    - name: Build APK
+      run: |
+        buildozer android debug
+      continue-on-error: true
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: calculator-apk
+        path: bin/*.apk
