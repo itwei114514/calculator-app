@@ -28,7 +28,7 @@ jobs:
         pip install --upgrade pip
         pip install Cython==0.29.33
         pip install kivy==2.2.1
-        pip install python-for-android==2023.9.16  # 使用可用的版本
+        pip install python-for-android  # 不指定版本，让pip选择最佳版本
         pip install buildozer==1.5.0
     
     - name: Verify installations
