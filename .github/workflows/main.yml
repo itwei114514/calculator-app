@@ -1,0 +1,60 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential git zip unzip openjdk-8-jdk python3-dev
+        export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+        java -version
+    
+    - name: Install Python dependencies
+      run: |
+        pip install --upgrade pip
+        pip install Cython==0.29.33
+        pip install kivy==2.2.1
+        pip install buildozer
+    
+    - name: Check files
+      run: |
+        ls -la
+        cat requirements.txt
+        cat buildozer.spec
+    
+    - name: Update buildozer.spec with correct requirements
+      run: |
+        sed -i 's/requirements = python3, kivy/requirements = python3,kivy/' buildozer.spec
+        sed -i 's/android.archs = arm64-v8a, armeabi-v7a/android.archs = arm64-v8a/' buildozer.spec
+        cat buildozer.spec
+    
+    - name: Build APK
+      run: |
+        buildozer android debug
+      continue-on-error: true
+    
+    - name: Show bin directory
+      run: |
+        find . -name "*.apk" -type f
+        ls -la bin/ || echo "Bin directory doesn't exist yet"
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: calculator-apk
+        path: bin/*.apk
+      continue-on-error: true
