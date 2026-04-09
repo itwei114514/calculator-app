@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest  # 使用最新的Ubuntu
     
     steps:
     - uses: actions/checkout@v4
@@ -34,22 +34,13 @@ jobs:
     - name: Verify installations
       run: |
         python -c "import kivy; print('Kivy version:', kivy.__version__)"
-        buildozer --version || echo "Buildozer version check failed"
-        p4a --version || echo "P4A version check failed"
-    
-    - name: Check files
-      run: |
-        ls -la
-        cat requirements.txt
-        cat buildozer.spec
     
     - name: Prepare project files
       run: |
         cp calculator_app.py main.py
-        echo "Files after preparation:"
-        ls -la main.py requirements.txt buildozer.spec
+        ls -la
     
-    - name: Update buildozer.spec
+    - name: Create buildozer.spec
       run: |
         echo "[app]" > buildozer.spec
         echo "title = Scientific Calculator" >> buildozer.spec
@@ -71,23 +62,33 @@ jobs:
         echo "log_level = 2" >> buildozer.spec
         cat buildozer.spec
     
-    - name: Clean previous builds
+    - name: Clean build directory
       run: |
-        rm -rf bin/
         rm -rf .buildozer/
+        rm -rf bin/
     
-    - name: Build APK with minimal dependencies first
+    - name: Build APK (first attempt)
       run: |
         echo "Starting build process..."
         buildozer android clean
         buildozer android debug
       continue-on-error: true
     
-    - name: Check build results
+    - name: Alternative build method
+      if: always()
       run: |
-        echo "Checking build results..."
-        find . -name "*.apk" -type f
-        ls -la bin/ || echo "Bin directory doesn't exist"
+        # If the normal build fails, try with minimal config
+        if [ ! -f "bin/*.apk" ]; then
+          echo "Trying alternative build method..."
+          buildozer android_new debug
+        fi
+      continue-on-error: true
+    
+    - name: Find APK files
+      run: |
+        echo "Looking for APK files..."
+        find . -name "*.apk" -type f -exec ls -la {} \;
+        ls -la bin/ 2>/dev/null || echo "No bin directory"
     
     - name: Upload APK
       uses: actions/upload-artifact@v4
@@ -95,6 +96,5 @@ jobs:
         name: calculator-apk
         path: |
           bin/*.apk
-          .buildozer/android/platform/build-arm64-v8a/dists/**/bin/*.apk
-          ./*.apk
+          **/*.apk
       continue-on-error: true
