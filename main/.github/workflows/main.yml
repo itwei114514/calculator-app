@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest  # 使用最新的Ubuntu
+    runs-on: ubuntu-latest
     
     steps:
     - uses: actions/checkout@v4
@@ -28,12 +28,13 @@ jobs:
         pip install --upgrade pip
         pip install Cython==0.29.33
         pip install kivy==2.2.1
-        pip install python-for-android==2023.7.27
+        pip install python-for-android==2023.9.16  # 使用可用的版本
         pip install buildozer==1.5.0
     
     - name: Verify installations
       run: |
         python -c "import kivy; print('Kivy version:', kivy.__version__)"
+        buildozer --version
     
     - name: Prepare project files
       run: |
@@ -67,24 +68,14 @@ jobs:
         rm -rf .buildozer/
         rm -rf bin/
     
-    - name: Build APK (first attempt)
+    - name: Build APK
       run: |
         echo "Starting build process..."
         buildozer android clean
         buildozer android debug
       continue-on-error: true
     
-    - name: Alternative build method
-      if: always()
-      run: |
-        # If the normal build fails, try with minimal config
-        if [ ! -f "bin/*.apk" ]; then
-          echo "Trying alternative build method..."
-          buildozer android_new debug
-        fi
-      continue-on-error: true
-    
-    - name: Find APK files
+    - name: Check build results
       run: |
         echo "Looking for APK files..."
         find . -name "*.apk" -type f -exec ls -la {} \;
